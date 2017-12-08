@@ -8,9 +8,7 @@ The goal is a severless WordPress environment for quick tests.
 *Installing*
 
 ```
-go get github.com/rheinardkorf/portable-wp
-cd $GOPATH/src/github.com/rheinardkorf/portable-wp/
-go install ./...
+go get github.com/rheinardkorf/portable-wp/cmd/pwp
 ```
 
 Make sure that $GOPATH/bin is in your paths. You can then run
