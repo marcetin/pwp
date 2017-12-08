@@ -494,7 +494,13 @@ func getFreePort(host string) (string, error) {
 // updateWordPressSettings updates our urls in our site to match the current host:port configuration
 // only if it determines a change.
 func updateWordPressSettings(settings *siteSettings) error {
-	database, err := sql.Open("sqlite3", fmt.Sprintf("%s/wp-content/database/.ht.sqlite", *settings.path))
+
+	dbFile := fmt.Sprintf("%s/wp-content/database/.ht.sqlite", *settings.path)
+	if _, err := os.Stat(dbFile); os.IsNotExist(err) {
+		return nil // Its likely that WP is not installed yet.
+	}
+
+	database, err := sql.Open("sqlite3", dbFile)
 	if err != nil {
 		return err
 	}
