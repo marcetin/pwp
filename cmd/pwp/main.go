@@ -127,6 +127,7 @@ func runServer(settings *siteSettings) error {
 	}
 
 	serve := exec.Command("php", "-S", fmt.Sprintf("%s:%s", *settings.host, *settings.port), "-t", *settings.path, *settings.path+"/router.php")
+	browse := exec.Command("open", fmt.Sprintf("http://%s:%s", *settings.host, *settings.port) );
 	fmt.Println("Starting built-in PHP server.")
 	fmt.Printf("http://%s:%s\n", *settings.host, *settings.port)
 	fmt.Println("Press Ctl-C to exit.")
@@ -134,7 +135,8 @@ func runServer(settings *siteSettings) error {
 	if err != nil {
 		logger.Fatal(err)
 	}
-
+	// No need to catch errors in case this is not supported (OSX)
+	browse.Start()
 	err = serve.Wait()
 	log.Printf("Command finished with error: %v", err)
 
