@@ -224,19 +224,21 @@ func extractWordPress(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		defer fileReader.Close()
 
 		// Get the destination...
 		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
 		if err != nil {
 			return err
 		}
-		defer targetFile.Close()
-
+		
 		// Copy!
 		if _, err := io.Copy(targetFile, fileReader); err != nil {
 			return err
 		}
+		
+		// Close files.
+		fileReader.Close()
+		targetFile.Close()
 	}
 
 	os.Remove(src)
