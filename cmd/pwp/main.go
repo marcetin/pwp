@@ -153,6 +153,35 @@ func spinner(delay time.Duration) {
 	}
 }
 
+// Handle file move.
+func moveFile( file *zip.File, dst string, rootPath string ) error {
+	path := filepath.Join(dst, strings.TrimPrefix(file.Name, rootPath))
+	if file.FileInfo().IsDir() {
+		os.MkdirAll(path, file.Mode())
+		return nil
+	}
+
+	// Get the file...
+	fileReader, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer fileReader.Close()
+
+	// Get the destination...
+	targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+	if err != nil {
+		return err
+	}
+
+	// Copy!
+	if _, err := io.Copy(targetFile, fileReader); err != nil {
+		return err
+	}
+	defer targetFile.Close()
+	return nil
+}
+
 // downloadWordPress downloads WordPress.
 func downloadWordPress(src, dst string) error {
 
@@ -215,32 +244,10 @@ func extractWordPress(src, dst string) error {
 
 	// Copy each file from the zip to its location.
 	for _, file := range reader.File {
-		path := filepath.Join(dst, strings.TrimPrefix(file.Name, rootPath))
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, file.Mode())
-			continue
-		}
-
-		// Get the file...
-		fileReader, err := file.Open()
+		err := moveFile( file, dst, rootPath )
 		if err != nil {
-			return err
+			logger.Fatal(err)
 		}
-
-		// Get the destination...
-		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		if err != nil {
-			return err
-		}
-		
-		// Copy!
-		if _, err := io.Copy(targetFile, fileReader); err != nil {
-			return err
-		}
-		
-		// Close files.
-		fileReader.Close()
-		targetFile.Close()
 	}
 
 	os.Remove(src)
@@ -311,29 +318,9 @@ func extractSqlLitePlugin(src string) error {
 
 	// Copy each file from the zip to its location.
 	for _, file := range reader.File {
-		path := filepath.Join(dst, strings.TrimPrefix(file.Name, rootPath))
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, file.Mode())
-			continue
-		}
-
-		// Get the file...
-		fileReader, err := file.Open()
+		err := moveFile( file, dst, rootPath )
 		if err != nil {
-			return err
-		}
-		defer fileReader.Close()
-
-		// Get the destination...
-		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		if err != nil {
-			return err
-		}
-		defer targetFile.Close()
-
-		// Copy!
-		if _, err := io.Copy(targetFile, fileReader); err != nil {
-			return err
+			logger.Fatal(err)
 		}
 	}
 
@@ -513,7 +500,7 @@ func updateWordPressSettings(settings *siteSettings) error {
 	// Get old url.
 	rows, err := database.Query("SELECT option_value FROM wp_options WHERE option_name = 'home';")
 	if err != nil {
-		return err
+		return nil // Its likely that WP is not installed yet.
 	}
 	var oldUrl string
 	for rows.Next() {
