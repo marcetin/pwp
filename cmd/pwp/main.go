@@ -85,34 +85,34 @@ func setup(settings *siteSettings) error {
 	if _, err := os.Stat(*settings.path); os.IsNotExist(err) {
 		// Download WordPress.
 		if err := downloadWordPress(WordPressDownload, *settings.path); err != nil {
-			return errors.New(fmt.Sprintf("could not download WordPress: %s", err));
+			return errors.New(fmt.Sprintf("could not download WordPress: %s", err))
 		}
 
 		// Extract WordPress.
 		if err := extractWordPress(*settings.path+".zip", *settings.path); err != nil {
-			return errors.New(fmt.Sprintf("could not extract WordPress: %s", err));
+			return errors.New(fmt.Sprintf("could not extract WordPress: %s", err))
 		}
 
 		pluginPath := *settings.path + "/wp-content/plugins"
 
 		// Download SQLite plugin.
 		if err := downloadSqlLitePlugin(SQLitePlugin, pluginPath+"/plugin.zip"); err != nil {
-			return errors.New(fmt.Sprintf("could not download SQLite plugin: %s", err));
+			return errors.New(fmt.Sprintf("could not download SQLite plugin: %s", err))
 		}
 
 		// Extract SQLite plugin.
 		if err := extractSqlLitePlugin(pluginPath + "/plugin.zip"); err != nil {
-			return errors.New(fmt.Sprintf("could not extract SQLite plugin: %s", err));
+			return errors.New(fmt.Sprintf("could not extract SQLite plugin: %s", err))
 		}
 
 		// Config WordPress.
 		if err := createConfig(settings); err != nil {
-			return errors.New(fmt.Sprintf("could not create WordPress config: %s", err));
+			return errors.New(fmt.Sprintf("could not create WordPress config: %s", err))
 		}
 
 		// Router file.
 		if err := createRouter(settings); err != nil {
-			return errors.New(fmt.Sprintf("router file fail: %s", err));
+			return errors.New(fmt.Sprintf("router file fail: %s", err))
 		}
 	}
 	return nil
@@ -127,7 +127,7 @@ func runServer(settings *siteSettings) error {
 	}
 
 	serve := exec.Command("php", "-S", fmt.Sprintf("%s:%s", *settings.host, *settings.port), "-t", *settings.path, *settings.path+"/router.php")
-	browse := exec.Command("open", fmt.Sprintf("http://%s:%s", *settings.host, *settings.port) );
+	browse := exec.Command("open", fmt.Sprintf("http://%s:%s", *settings.host, *settings.port) )
 	fmt.Println("Starting built-in PHP server.")
 	fmt.Printf("http://%s:%s\n", *settings.host, *settings.port)
 	fmt.Println("Press Ctl-C to exit.")
