@@ -29,8 +29,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const WordPressDownload string = "https://wordpress.org/latest.zip"
-const SQLitePlugin string = "https://downloads.wordpress.org/plugin/sqlite-integration.zip"
+const WordPressDownload = "https://wordpress.org/latest.zip"
+const SQLitePlugin = "https://downloads.wordpress.org/plugin/sqlite-integration.zip"
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
@@ -38,7 +38,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-var logger *log.Logger = log.New(os.Stdout, "pwp:", log.LstdFlags)
+var logger = log.New(os.Stdout, "pwp:", log.LstdFlags)
 
 // siteSettings is contains the values of the command line flags or defaults.
 type siteSettings struct {
