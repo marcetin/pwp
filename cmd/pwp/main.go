@@ -29,8 +29,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const WordPressDownload string = "https://wordpress.org/latest.zip"
-const SQLitePlugin string = "https://downloads.wordpress.org/plugin/sqlite-integration.zip"
+const WordPressDownload = "https://wordpress.org/latest.zip"
+const SQLitePlugin = "https://downloads.wordpress.org/plugin/sqlite-integration.zip"
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
@@ -38,7 +38,7 @@ const (
 	letterIdxMax  = 63 / letterIdxBits   // # of letter indices fitting in 63 bits
 )
 
-var logger *log.Logger = log.New(os.Stdout, "pwp:", log.LstdFlags)
+var logger = log.New(os.Stdout, "pwp:", log.LstdFlags)
 
 // siteSettings is contains the values of the command line flags or defaults.
 type siteSettings struct {
@@ -85,34 +85,34 @@ func setup(settings *siteSettings) error {
 	if _, err := os.Stat(*settings.path); os.IsNotExist(err) {
 		// Download WordPress.
 		if err := downloadWordPress(WordPressDownload, *settings.path); err != nil {
-			return errors.New(fmt.Sprintf("could not download WordPress: %s", err));
+			return errors.New(fmt.Sprintf("could not download WordPress: %s", err))
 		}
 
 		// Extract WordPress.
 		if err := extractWordPress(*settings.path+".zip", *settings.path); err != nil {
-			return errors.New(fmt.Sprintf("could not extract WordPress: %s", err));
+			return errors.New(fmt.Sprintf("could not extract WordPress: %s", err))
 		}
 
 		pluginPath := *settings.path + "/wp-content/plugins"
 
 		// Download SQLite plugin.
 		if err := downloadSqlLitePlugin(SQLitePlugin, pluginPath+"/plugin.zip"); err != nil {
-			return errors.New(fmt.Sprintf("could not download SQLite plugin: %s", err));
+			return errors.New(fmt.Sprintf("could not download SQLite plugin: %s", err))
 		}
 
 		// Extract SQLite plugin.
 		if err := extractSqlLitePlugin(pluginPath + "/plugin.zip"); err != nil {
-			return errors.New(fmt.Sprintf("could not extract SQLite plugin: %s", err));
+			return errors.New(fmt.Sprintf("could not extract SQLite plugin: %s", err))
 		}
 
 		// Config WordPress.
 		if err := createConfig(settings); err != nil {
-			return errors.New(fmt.Sprintf("could not create WordPress config: %s", err));
+			return errors.New(fmt.Sprintf("could not create WordPress config: %s", err))
 		}
 
 		// Router file.
 		if err := createRouter(settings); err != nil {
-			return errors.New(fmt.Sprintf("router file fail: %s", err));
+			return errors.New(fmt.Sprintf("router file fail: %s", err))
 		}
 	}
 	return nil
@@ -127,6 +127,7 @@ func runServer(settings *siteSettings) error {
 	}
 
 	serve := exec.Command("php", "-S", fmt.Sprintf("%s:%s", *settings.host, *settings.port), "-t", *settings.path, *settings.path+"/router.php")
+	browse := exec.Command("open", fmt.Sprintf("http://%s:%s", *settings.host, *settings.port) )
 	fmt.Println("Starting built-in PHP server.")
 	fmt.Printf("http://%s:%s\n", *settings.host, *settings.port)
 	fmt.Println("Press Ctl-C to exit.")
@@ -134,7 +135,8 @@ func runServer(settings *siteSettings) error {
 	if err != nil {
 		logger.Fatal(err)
 	}
-
+	// No need to catch errors in case this is not supported (OSX)
+	browse.Start()
 	err = serve.Wait()
 	log.Printf("Command finished with error: %v", err)
 
@@ -149,6 +151,35 @@ func spinner(delay time.Duration) {
 			time.Sleep(delay)
 		}
 	}
+}
+
+// Handle file move.
+func moveFile( file *zip.File, dst string, rootPath string ) error {
+	path := filepath.Join(dst, strings.TrimPrefix(file.Name, rootPath))
+	if file.FileInfo().IsDir() {
+		os.MkdirAll(path, file.Mode())
+		return nil
+	}
+
+	// Get the file...
+	fileReader, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer fileReader.Close()
+
+	// Get the destination...
+	targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
+	if err != nil {
+		return err
+	}
+
+	// Copy!
+	if _, err := io.Copy(targetFile, fileReader); err != nil {
+		return err
+	}
+	defer targetFile.Close()
+	return nil
 }
 
 // downloadWordPress downloads WordPress.
@@ -213,29 +244,9 @@ func extractWordPress(src, dst string) error {
 
 	// Copy each file from the zip to its location.
 	for _, file := range reader.File {
-		path := filepath.Join(dst, strings.TrimPrefix(file.Name, rootPath))
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, file.Mode())
-			continue
-		}
-
-		// Get the file...
-		fileReader, err := file.Open()
+		err := moveFile( file, dst, rootPath )
 		if err != nil {
-			return err
-		}
-		defer fileReader.Close()
-
-		// Get the destination...
-		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		if err != nil {
-			return err
-		}
-		defer targetFile.Close()
-
-		// Copy!
-		if _, err := io.Copy(targetFile, fileReader); err != nil {
-			return err
+			logger.Fatal(err)
 		}
 	}
 
@@ -307,29 +318,9 @@ func extractSqlLitePlugin(src string) error {
 
 	// Copy each file from the zip to its location.
 	for _, file := range reader.File {
-		path := filepath.Join(dst, strings.TrimPrefix(file.Name, rootPath))
-		if file.FileInfo().IsDir() {
-			os.MkdirAll(path, file.Mode())
-			continue
-		}
-
-		// Get the file...
-		fileReader, err := file.Open()
+		err := moveFile( file, dst, rootPath )
 		if err != nil {
-			return err
-		}
-		defer fileReader.Close()
-
-		// Get the destination...
-		targetFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, file.Mode())
-		if err != nil {
-			return err
-		}
-		defer targetFile.Close()
-
-		// Copy!
-		if _, err := io.Copy(targetFile, fileReader); err != nil {
-			return err
+			logger.Fatal(err)
 		}
 	}
 
@@ -509,7 +500,7 @@ func updateWordPressSettings(settings *siteSettings) error {
 	// Get old url.
 	rows, err := database.Query("SELECT option_value FROM wp_options WHERE option_name = 'home';")
 	if err != nil {
-		return err
+		return nil // Its likely that WP is not installed yet.
 	}
 	var oldUrl string
 	for rows.Next() {
