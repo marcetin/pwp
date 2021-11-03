@@ -1,4 +1,4 @@
-package: github.com/rheinardkorf/portable-wp
+package: github.com/marcetin/pwp
 import:
 - package: github.com/mattn/go-sqlite3
   version: v1.4.0
