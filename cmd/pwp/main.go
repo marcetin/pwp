@@ -10,22 +10,23 @@
 package main
 
 import (
+	"archive/zip"
+	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
-	"os"
-	"net/http"
 	"io"
 	"log"
-	"time"
-	"archive/zip"
-	"path/filepath"
-	"strings"
 	"math/rand"
-	"errors"
-	"os/exec"
 	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
-	"database/sql"
+	"strings"
+	"time"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -127,7 +128,7 @@ func runServer(settings *siteSettings) error {
 	}
 
 	serve := exec.Command("php", "-S", fmt.Sprintf("%s:%s", *settings.host, *settings.port), "-t", *settings.path, *settings.path+"/router.php")
-	browse := exec.Command("open", fmt.Sprintf("http://%s:%s", *settings.host, *settings.port) )
+	browse := exec.Command("open", fmt.Sprintf("http://%s:%s", *settings.host, *settings.port))
 	fmt.Println("Starting built-in PHP server.")
 	fmt.Printf("http://%s:%s\n", *settings.host, *settings.port)
 	fmt.Println("Press Ctl-C to exit.")
@@ -154,7 +155,7 @@ func spinner(delay time.Duration) {
 }
 
 // Handle file move.
-func moveFile( file *zip.File, dst string, rootPath string ) error {
+func moveFile(file *zip.File, dst string, rootPath string) error {
 	path := filepath.Join(dst, strings.TrimPrefix(file.Name, rootPath))
 	if file.FileInfo().IsDir() {
 		os.MkdirAll(path, file.Mode())
@@ -234,7 +235,7 @@ func extractWordPress(src, dst string) error {
 	rootPath := ""
 	for _, file := range reader.File {
 		path := file.Name
-		if ! file.FileInfo().IsDir() {
+		if !file.FileInfo().IsDir() {
 			continue
 		}
 		if len(path) < len(rootPath) || rootPath == "" {
@@ -244,7 +245,7 @@ func extractWordPress(src, dst string) error {
 
 	// Copy each file from the zip to its location.
 	for _, file := range reader.File {
-		err := moveFile( file, dst, rootPath )
+		err := moveFile(file, dst, rootPath)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -302,7 +303,7 @@ func extractSqlLitePlugin(src string) error {
 	rootPath := ""
 	for _, file := range reader.File {
 		path := file.Name
-		if ! file.FileInfo().IsDir() {
+		if !file.FileInfo().IsDir() {
 			continue
 		}
 		if len(path) < len(rootPath) || rootPath == "" {
@@ -318,7 +319,7 @@ func extractSqlLitePlugin(src string) error {
 
 	// Copy each file from the zip to its location.
 	for _, file := range reader.File {
-		err := moveFile( file, dst, rootPath )
+		err := moveFile(file, dst, rootPath)
 		if err != nil {
 			logger.Fatal(err)
 		}
@@ -455,7 +456,7 @@ func autoPort(settings *siteSettings) (string, error) {
 	}
 
 	// Try for port 80 first, else get one from kernel.
-	addr, err := net.ResolveTCPAddr("tcp", *settings.host + ":80")
+	addr, err := net.ResolveTCPAddr("tcp", *settings.host+":80")
 	l, err := net.ListenTCP("tcp", addr)
 	if err != nil {
 		return getFreePort(*settings.host)
@@ -468,7 +469,7 @@ func autoPort(settings *siteSettings) (string, error) {
 
 // getFreePort asks the kernel for a free open port that is ready to use.
 func getFreePort(host string) (string, error) {
-	addr, err := net.ResolveTCPAddr("tcp", host + ":0")
+	addr, err := net.ResolveTCPAddr("tcp", host+":0")
 	if err != nil {
 		return "", err
 	}
