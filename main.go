@@ -27,11 +27,11 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 const WordPressDownload = "https://wordpress.org/latest.zip"
-const SQLitePlugin = "https://downloads.wordpress.org/plugin/sqlite-integration.zip"
+const SQLitePlugin = "https://downloads.wordpress.org/plugin/sqlite-database-integration.zip"
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 const (
 	letterIdxBits = 6                    // 6 bits to represent a letter index
@@ -325,7 +325,7 @@ func extractSqlLitePlugin(src string) error {
 		}
 	}
 
-	os.Rename(dst+"/db.php", dst+"../../db.php")
+	os.Rename(dst+"/db.copy", dst+"../../db.php")
 
 	os.Remove(src)
 	fmt.Printf("\r")
