@@ -12,10 +12,12 @@ package main
 import (
 	"archive/zip"
 	"database/sql"
+	"embed"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"math/rand"
 	"net"
@@ -27,8 +29,12 @@ import (
 	"strings"
 	"time"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
+
+//go:embed php/**/*
+//go:embed php/php.ini
+var embeddedPHP embed.FS
 
 const WordPressDownload = "https://wordpress.org/latest.zip"
 const SQLitePlugin = "https://downloads.wordpress.org/plugin/sqlite-database-integration.zip"
@@ -51,7 +57,6 @@ type siteSettings struct {
 
 // main is our entrypoint.
 func main() {
-
 	settings := &siteSettings{
 		host: flag.String("host", "localhost", "name of host"),
 		port: flag.String("port", "auto", "port to use"),
@@ -121,13 +126,26 @@ func setup(settings *siteSettings) error {
 
 // runServer uses a very crude shell exec to run the PHP server.
 func runServer(settings *siteSettings) error {
-
 	err := updateWordPressSettings(settings)
 	if err != nil {
 		return err
 	}
 
-	serve := exec.Command("php", "-S", fmt.Sprintf("%s:%s", *settings.host, *settings.port), "-t", *settings.path, *settings.path+"/router.php")
+	phpBin, phpIni, err := extractEmbeddedPHP()
+	if err != nil {
+		return fmt.Errorf("failed to extract PHP: %w", err)
+	}
+
+	serve := exec.Command(
+		phpBin,
+		"-c", phpIni,
+		"-S", fmt.Sprintf("%s:%s", *settings.host, *settings.port),
+		"-t", *settings.path,
+		filepath.Join(*settings.path, "router.php"),
+	)
+
+	// serve := exec.Command(phpExecutable, "-c php/php.ini -S", fmt.Sprintf("%s:%s", *settings.host, *settings.port), "-t", *settings.path, *settings.path+"/router.php")
+
 	browse := exec.Command("open", fmt.Sprintf("http://%s:%s", *settings.host, *settings.port))
 	fmt.Println("Starting built-in PHP server.")
 	fmt.Printf("http://%s:%s\n", *settings.host, *settings.port)
@@ -549,4 +567,38 @@ func updateWordPressSettings(settings *siteSettings) error {
 	}
 
 	return nil
+}
+
+func extractEmbeddedPHP() (phpPath string, iniPath string, err error) {
+	tmpBase := filepath.Join(os.TempDir(), "pwp-runtime")
+	tmpPHP := filepath.Join(tmpBase, "php")
+
+	err = fs.WalkDir(embeddedPHP, "php", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relPath := strings.TrimPrefix(path, "php/")
+		dst := filepath.Join(tmpPHP, relPath)
+
+		if d.IsDir() {
+			return os.MkdirAll(dst, 0755)
+		}
+
+		data, err := embeddedPHP.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		mode := os.FileMode(0644)
+		if filepath.Base(path) == "php" && strings.Contains(path, "bin/") {
+			mode = 0755
+		}
+
+		return os.WriteFile(dst, data, mode)
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	return filepath.Join(tmpPHP, "bin", "php"), filepath.Join(tmpPHP, "php.ini"), nil
 }
